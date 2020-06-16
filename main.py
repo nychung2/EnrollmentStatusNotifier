@@ -5,14 +5,18 @@ import xml.etree.ElementTree as ElementTree
 import config
 
 
-# Sends a GET Request to UIUC's CISAPI and returns the status of the class.
-def retrieve_status(course):
-    try:
-        response = requests.get(course)
-        print("IllinoisAPI Response Code: " + response.status_code.__str__())
-    except response.status_code != 200:
+# Sends a GET Request to UIUC's CISAPI.
+def try_request(course):
+    response = requests.get(course)
+    print("IllinoisAPI Response Code: " + response.status_code.__str__())
+    if response.status_code != 200:
         return 'Failed'
+    else:
+        return response
 
+
+# Returns the status of the Class.
+def get_status(response):
     root = ElementTree.fromstring(response.content)
     status = root.findtext('enrollmentStatus')
     notes = root.findtext('sectionNotes')
@@ -35,7 +39,7 @@ def notify_user():
 
 # Tells the user that the API GET Request Failed.
 def notify_failure():
-    bot_dict = {"bot_id": config.pibot, "text": "Illinois API failed three times. Halting Script."}
+    bot_dict = {"bot_id": config.pibot, "text": "Illinois API failed three times in a row. Halting script."}
     bot_json = json.dumps(bot_dict)
     send = requests.post('https://api.groupme.com/v3/bots/post', data=bot_json)
     print("GroupMe Response Code: " + send.status_code.__str__())
@@ -44,15 +48,16 @@ def notify_failure():
 counter = 0
 program = True
 while program:
-    string = retrieve_status(config.course_path)
-    if string == 'Failed':
+    idk_what_to_call_this = try_request(config.course_path)
+    if idk_what_to_call_this == 'Failed':
         counter += 1
         if counter == 3:
             notify_failure()
             print('Script Terminated')
             program = False
     else:
-        if string == 'Open':
+        counter = 0
+        if get_status(idk_what_to_call_this) == 'Open':
             notify_user()
             print('Script Terminated')
             program = False
